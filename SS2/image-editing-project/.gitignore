@@ -1,0 +1,9 @@
+.DS_Store
+__MACOSX/
+
+backend/__pycache__/
+backend/uploads/
+backend/outputs/
+backend/server.log
+backend/image_editing.db
+backend/.env

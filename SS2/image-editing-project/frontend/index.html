@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Image Editing System</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>AI Image Editing System</h1>
+    <p class="subtitle">Upload ảnh và chỉnh sửa bằng câu lệnh tự nhiên — tiếng Việt hoặc tiếng Anh.</p>
+
+    <div class="card form-card">
+      <label for="imageInput" class="label">📁 Upload Ảnh</label>
+      <input type="file" id="imageInput" accept="image/*" />
+
+      <label for="promptInput" class="label">✏️ Nhập câu lệnh chỉnh sửa</label>
+      <textarea
+        id="promptInput"
+        placeholder="Ví dụ: làm ảnh trông như buổi hoàng hôn ấm áp&#10;Ví dụ: chuyển thành phong cách vintage&#10;Ví dụ: làm mờ nền và tăng độ sắc nét"
+      ></textarea>
+
+      <button id="editBtn">🚀 Edit với AI</button>
+      <p id="statusText" class="status"></p>
+    </div>
+
+    <div class="preview-grid">
+      <div class="card preview-card">
+        <h3>Ảnh Gốc</h3>
+        <div class="image-wrapper">
+          <img id="originalPreview" alt="Original preview" />
+        </div>
+      </div>
+
+      <div class="card preview-card">
+        <h3>Ảnh Đã Chỉnh Sửa</h3>
+        <div class="image-wrapper">
+          <img id="editedPreview" alt="Edited preview" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card download-card">$
+      <a id="downloadLink" href="#" download="edited_image.png" class="download-btn">
+        ⬇️ Tải Ảnh Đã Chỉnh Sửa
+      </a>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
