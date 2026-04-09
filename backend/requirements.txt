@@ -1,0 +1,8 @@
+fastapi
+huggingface_hub
+pillow
+python-dotenv
+python-multipart
+requests
+supabase
+uvicorn
