@@ -1,21 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { 
   Send, Sparkles, Loader2, Download, Home, History, Settings,
   LogOut, AlertCircle, ShieldCheck, Image as ImageIcon, Clock, Cloud, Plus, X, 
-  ChevronRight, Zap, Database, MessageSquare, Layers, Cpu, Sliders
+  ChevronRight, Zap, Database, MessageSquare, Layers, Cpu, Sliders, Sun, Moon
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION ---
 // App.jsx
 
-// Token và URl của supabase được lưu trong file .env
+// Token vÃ  URl cá»§a supabase Ä‘Æ°á»£c lÆ°u trong file .env
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const DISPLAY_BRIGHTNESS_STORAGE_KEY = 'ai-vision-display-brightness';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 function App() {
+  const HISTORY_REFERENCE_STORAGE_KEY = 'ai-vision-history-reference-images';
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -25,11 +27,22 @@ function App() {
   const [result, setResult] = useState(null);
   const [historyItems, setHistoryItems] = useState([]);
   const [authError, setAuthError] = useState('');
+  const [authSuccess, setAuthSuccess] = useState('');
+  const [appNotice, setAppNotice] = useState('');
+  const [brightness, setBrightness] = useState(() => {
+    if (typeof window === 'undefined') return 100;
+
+    const savedBrightness = Number(window.localStorage.getItem(DISPLAY_BRIGHTNESS_STORAGE_KEY));
+    return Number.isFinite(savedBrightness) && savedBrightness >= 70 && savedBrightness <= 130
+      ? savedBrightness
+      : 100;
+  });
   
-  // States mở rộng
+  // States má»Ÿ rá»™ng
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [referencePreview, setReferencePreview] = useState(null);
   const [referenceFile, setReferenceFile] = useState(null);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState(null);
   const fileInputRef = useRef(null);
 
   // States Form Login
@@ -37,7 +50,7 @@ function App() {
   const [password, setPassword] = useState('');
   const [fullname, setFullname] = useState('');
 
-  // --- 2. LOGIC HỆ THỐNG ---
+  // --- 2. LOGIC Há»† THá»NG ---
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) handleUserSession(session.user);
@@ -48,7 +61,62 @@ function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
-const handleDownload = async (imageUrl) => {
+
+  useEffect(() => {
+    const originalAlert = window.alert;
+    window.alert = (message) => {
+      const text = String(message ?? '');
+
+      if (text === 'Profile Mode!' || text === 'Flux.1-schnell activated!') {
+        setAppNotice('This feature is currently being updated.');
+        return;
+      }
+
+      if (text === 'Registration successful! Please sign in.') {
+        setAuthSuccess('Your account has been created successfully.');
+        return;
+      }
+
+      setAppNotice(text);
+    };
+
+    return () => {
+      window.alert = originalAlert;
+    };
+  }, []);
+
+  useEffect(() => {
+    setAppNotice('');
+  }, [activeTab]);
+
+  useEffect(() => {
+    window.localStorage.setItem(DISPLAY_BRIGHTNESS_STORAGE_KEY, String(brightness));
+  }, [brightness]);
+
+  const handleUserSession = (user) => {
+    setCurrentUser({
+      name: user.user_metadata.full_name || user.user_metadata.name || 'Nguyá»…n Minh Hiá»n',
+      email: user.email,
+      avatar: user.user_metadata.avatar_url,
+    });
+    setIsLoggedIn(true);
+    fetchHistory(user.email);
+  };
+
+  const displayFirstName = currentUser?.name?.trim()?.split(/\s+/).slice(-1)[0] || 'Developer';
+  const decreaseBrightness = () => setBrightness((current) => Math.max(70, current - 10));
+  const increaseBrightness = () => setBrightness((current) => Math.min(130, current + 10));
+  const resetBrightness = () => setBrightness(100);
+  const displayFilterStyle = { filter: `brightness(${brightness}%)` };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsSettingsOpen(false);
+    setIsLoggedIn(false);
+    window.location.reload();
+  };
+// --- COPY ÄOáº N NÃ€Y DÃN VÃ€O DÃ’NG 65 ---
+  const handleDownload = async (imageUrl) => {
     if (!imageUrl) return;
     try {
       const response = await fetch(imageUrl);
@@ -62,51 +130,63 @@ const handleDownload = async (imageUrl) => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Download error:", error);
-      alert("Không thể tải ảnh. Vui lòng thử lại!");
+      setAppNotice('Unable to download the image. Please try again.');
     }
   };
-  const handleUserSession = (user) => {
-    setCurrentUser({
-      name: user.user_metadata.full_name || user.user_metadata.name || 'Nguyễn Minh Hiền',
-      email: user.email,
-      avatar: user.user_metadata.avatar_url,
-    });
-    setIsLoggedIn(true);
-    fetchHistory(user.email);
+
+  const getStoredReferenceImage = (imageUrl) => {
+    if (!imageUrl) return null;
+
+    try {
+      const stored = localStorage.getItem(HISTORY_REFERENCE_STORAGE_KEY);
+      if (!stored) return null;
+
+      const parsed = JSON.parse(stored);
+      return parsed[imageUrl] || null;
+    } catch (error) {
+      console.error('Failed to read cached reference image:', error);
+      return null;
+    }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsSettingsOpen(false);
-    setIsLoggedIn(false);
-    window.location.reload();
+  const cacheReferenceImage = (imageUrl, previewUrl) => {
+    if (!imageUrl || !previewUrl) return;
+
+    try {
+      const stored = localStorage.getItem(HISTORY_REFERENCE_STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[imageUrl] = previewUrl;
+      localStorage.setItem(HISTORY_REFERENCE_STORAGE_KEY, JSON.stringify(parsed));
+    } catch (error) {
+      console.error('Failed to cache reference image:', error);
+    }
   };
 
   const fetchHistory = async (email) => {
     if (!email) return;
     try {
-      console.log("🔍 Fetching history for:", email);
+      console.log("ðŸ” Fetching history for:", email);
       const res = await fetch(`${API_BASE_URL}/get-history?email=${email}`);
       const data = await res.json();
       
       if (data.status === 'success') {
         if (data.data && data.data.length > 0) {
-          // NẾU CÓ DỮ LIỆU THẬT: Hiện dữ liệu thật
+          // Náº¾U CÃ“ Dá»® LIá»†U THáº¬T: Hiá»‡n dá»¯ liá»‡u tháº­t
           setHistoryItems(data.data);
         } else {
-          // NẾU DATABASE TRỐNG: Hiện thông báo hoặc giữ nguyên dữ liệu mẫu để demo
-          console.log("ℹ️ Database is empty for this user.");
+          // Náº¾U DATABASE TRá»NG: Hiá»‡n thÃ´ng bÃ¡o hoáº·c giá»¯ nguyÃªn dá»¯ liá»‡u máº«u Ä‘á»ƒ demo
+          console.log("â„¹ï¸ Database is empty for this user.");
         }
       }
     } catch (e) { 
-      console.error("❌ Link Backend lỗi hoặc chưa bật main.py"); 
+      console.error("âŒ Link Backend lá»—i hoáº·c chÆ°a báº­t main.py"); 
     }
   };
 
   const handleManualAuth = async (e) => {
     e.preventDefault();
     setAuthError('');
+    setAuthSuccess('');
 
     // --- CONDITION 1: EMAIL FORMAT VALIDATION ---
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -134,7 +214,7 @@ const handleDownload = async (imageUrl) => {
       if (data.status === 'success') {
         if (isRegistering) {
           setIsRegistering(false);
-          alert("Registration successful! Please sign in.");
+          setAuthSuccess('Your account has been created successfully.');
         } else {
           handleUserSession({ 
             email: data.email, 
@@ -149,17 +229,35 @@ const handleDownload = async (imageUrl) => {
       setAuthError('System maintenance in progress, please try again later!');
     }
   };
-  // Hàm này giúp bà "xóa sạch dấu vết" để làm cái mới
+  // HÃ m nÃ y giÃºp bÃ  "xÃ³a sáº¡ch dáº¥u váº¿t" Ä‘á»ƒ lÃ m cÃ¡i má»›i
   const startNewProject = () => {
-    setResult(null);            // Xóa ảnh kết quả cũ
-    setPrompt('');              // Xóa câu lệnh cũ
-    setReferencePreview(null);  // Xóa ảnh gốc cũ
-    setReferenceFile(null);     // Xóa file đã chọn
-    setActiveTab('home');       // Quay về trang chủ
+    setResult(null);            // XÃ³a áº£nh káº¿t quáº£ cÅ©
+    setPrompt('');              // XÃ³a cÃ¢u lá»‡nh cÅ©
+    setReferencePreview(null);  // XÃ³a áº£nh gá»‘c cÅ©
+    setReferenceFile(null);     // XÃ³a file Ä‘Ã£ chá»n
+    setSelectedHistoryItem(null);
+    setActiveTab('home');       // Quay vá» trang chá»§
   };
+
+  const loadHistoryItem = (item, options = {}) => {
+    if (!item) return;
+
+    const restoredReferenceImage = item.reference_image_url || getStoredReferenceImage(item.image_url);
+
+    setSelectedHistoryItem(item);
+    if (item.image_url) setResult(item.image_url);
+    setPrompt(item.prompt || '');
+    setReferencePreview(restoredReferenceImage);
+    setReferenceFile(null);
+
+    if (options.openEditor) {
+      setActiveTab('home');
+    }
+  };
+
  const generateImage = async () => {
     if (!prompt.trim()) return;
-    setLoading(true);
+    setAppNotice('');
     try {
       const formData = new FormData();
       formData.append('text', prompt.trim());
@@ -170,23 +268,25 @@ const handleDownload = async (imageUrl) => {
       const data = await res.json();
       
       if (data.status === 'success') {
-        // --- ĐÂY LÀ PHẦN SỬA LỖI FRONTEND ---
-        // 'result' state được set trực tiếp bằng chuỗi Data URI: "data:image/png;base64,iVBOR..."
+        // --- ÄÃ‚Y LÃ€ PHáº¦N Sá»¬A Lá»–I FRONTEND ---
+        // 'result' state Ä‘Æ°á»£c set trá»±c tiáº¿p báº±ng chuá»—i Data URI: "data:image/png;base64,iVBOR..."
         setResult(data.image_url); 
+        setSelectedHistoryItem(null);
+        cacheReferenceImage(data.image_url, referencePreview);
         fetchHistory(currentUser.email);
       } else {
-        alert("Lỗi AI: " + data.message);
+        setAppNotice(`AI error: ${data.message}`);
       }
-    } catch (e) { console.error(e); alert("Lỗi hệ thống gen ảnh."); }
+    } catch (e) { console.error(e); setAppNotice('Image generation system error.'); }
     finally { setLoading(false); }
   };
 
   // =========================================================
-  // --- 3. UI LOGIN (TRẢ LẠI BẢN GỐC HÀO NHOÁNG) ---
+  // --- 3. UI LOGIN (TRáº¢ Láº I Báº¢N Gá»C HÃ€O NHOÃNG) ---
   // =========================================================
   if (!isLoggedIn) {
     return (
-      <div className="h-screen w-full bg-[#050505] flex items-center justify-center p-10 font-sans relative overflow-hidden">
+      <div className="h-screen w-full bg-[#050505] flex items-center justify-center p-10 font-sans relative overflow-hidden transition-all duration-300" style={displayFilterStyle}>
         <div className="w-full max-w-7xl h-[850px] bg-[#0b0b0d] rounded-[4rem] overflow-hidden flex border border-white/5 shadow-2xl z-10">
           <div className="hidden lg:flex w-1/2 bg-black relative">
             <img src="https://cdn.sforum.vn/sforum/wp-content/uploads/2023/07/hinh-nen-ai-76.jpg" className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105" alt="Lab Art" />
@@ -201,6 +301,7 @@ const handleDownload = async (imageUrl) => {
               <span className="text-blue-500 font-black text-[10px] uppercase tracking-[0.5em] mb-3 block italic">System Authorization</span>
               <h1 className="text-6xl font-black text-white uppercase tracking-tighter italic">{isRegistering ? 'CREATE' : 'SIGN IN'}</h1>
             </header>
+            {authSuccess && <div className="mb-6 p-5 bg-green-500/10 border border-green-500/20 rounded-2xl text-green-400 text-xs flex items-center gap-3"><ShieldCheck size={14}/> {authSuccess}</div>}
             {authError && <div className="mb-6 p-5 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-xs flex items-center gap-3"><AlertCircle size={14}/> {authError}</div>}
             <form onSubmit={handleManualAuth} className="space-y-6">
               {isRegistering && (
@@ -217,7 +318,9 @@ const handleDownload = async (imageUrl) => {
                 <label className="text-[15px] font-black text-gray-500 uppercase tracking-widest ml-2">Password</label>
                 <input type="password" required className="w-full bg-[#16161c] border border-white/5 rounded-2xl p-5 text-white outline-none focus:border-blue-600 transition-all" onChange={(e)=>setPassword(e.target.value)} />
               </div>
-              <button className="w-full bg-blue-600 hover:bg-blue-500 py-6 rounded-2xl font-black uppercase text-white active:scale-95 transition-all shadow-lg mt-4 tracking-widest text-xs">Account Login</button>
+              <button className="w-full bg-blue-600 hover:bg-blue-500 py-6 rounded-2xl font-black uppercase text-white active:scale-95 transition-all shadow-lg mt-4 tracking-widest text-xs">
+                {isRegistering ? 'Create Account' : 'Account Login'}
+              </button>
             </form>
             <button onClick={() => supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin, queryParams: { prompt: 'select_account' } } })} className="mt-8 w-full bg-white text-black py-6 rounded-2xl font-black uppercase flex items-center justify-center gap-4 active:scale-95 transition-all shadow-2xl hover:bg-gray-100 text-xs tracking-widest"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" />Continue with Google</button>
             <button onClick={()=>setIsRegistering(!isRegistering)} className="mt-10 text-gray-500 text-[12px] uppercase font-bold text-center hover:text-blue-600 transition-all underline underline-offset-8 decoration-white/10">{isRegistering ? 'Back to Login' : 'Create an account'}</button>
@@ -228,10 +331,10 @@ const handleDownload = async (imageUrl) => {
   }
 
   // =========================================================
-  // --- 4. GIAO DIỆN DASHBOARD (SIDEBAR + CONTENT) ---
+  // --- 4. GIAO DIá»†N DASHBOARD (SIDEBAR + CONTENT) ---
   // =========================================================
   return (
-    <div className="flex h-screen bg-[#0d0d11] text-white overflow-hidden font-sans relative">
+    <div className="flex h-screen bg-[#0d0d11] text-white overflow-hidden font-sans relative transition-all duration-300" style={displayFilterStyle}>
       
       {/* SIDEBAR */}
       <aside className="w-80 bg-[#09090c] border-r border-white/5 flex flex-col p-8 shrink-0 shadow-2xl">
@@ -240,28 +343,29 @@ const handleDownload = async (imageUrl) => {
           <span className="font-black text-2xl italic tracking-tighter uppercase">AI VISION</span>
         </div>
         <nav className="flex-1 space-y-4">
-          {/* Nút Home: Vừa chuyển tab, vừa xóa sạch dữ liệu cũ để làm cái mới */}
+          {/* NÃºt Home: Vá»«a chuyá»ƒn tab, vá»«a xÃ³a sáº¡ch dá»¯ liá»‡u cÅ© Ä‘á»ƒ lÃ m cÃ¡i má»›i */}
           <NavItem 
             icon={<Home size={20}/>} 
             label="HOME DASHBOARD" 
             active={activeTab==='home'} 
             onClick={() => {
-              setResult(null);             // Xóa ảnh kết quả
-              setPrompt('');               // Xóa chữ trong ô nhập
-              setReferencePreview(null);    // Xóa ảnh xem trước
-              setReferenceFile(null);       // Xóa file vật lý đã chọn
-              setActiveTab('home');        // Chuyển về màn hình chính
+              setResult(null);             // XÃ³a áº£nh káº¿t quáº£
+              setPrompt('');               // XÃ³a chá»¯ trong Ã´ nháº­p
+              setReferencePreview(null);    // XÃ³a áº£nh xem trÆ°á»›c
+              setReferenceFile(null);       // XÃ³a file váº­t lÃ½ Ä‘Ã£ chá»n
+              setSelectedHistoryItem(null);
+              setActiveTab('home');        // Chuyá»ƒn vá» mÃ n hÃ¬nh chÃ­nh
             }} 
           />
 
-          {/* Nút History: Chỉ chuyển tab thôi, để khi bà bấm vào ảnh trong history nó vẫn còn đó */}
+          {/* NÃºt History: Chá»‰ chuyá»ƒn tab thÃ´i, Ä‘á»ƒ khi bÃ  báº¥m vÃ o áº£nh trong history nÃ³ váº«n cÃ²n Ä‘Ã³ */}
           <NavItem 
             icon={<History size={20}/>} 
             label="HISTORY EDIT" 
             active={activeTab==='history'} 
             onClick={() => {
               setActiveTab('history');
-              fetchHistory(currentUser?.email); // Tiện tay cập nhật lịch sử mới nhất luôn
+              fetchHistory(currentUser?.email); // Tiá»‡n tay cáº­p nháº­t lá»‹ch sá»­ má»›i nháº¥t luÃ´n
             }} 
           />
 
@@ -290,6 +394,27 @@ const handleDownload = async (imageUrl) => {
             </span>
           </div>
           <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 p-1">
+              <button
+                onClick={decreaseBrightness}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Giảm độ sáng"
+                aria-label="Giảm độ sáng"
+              >
+                <Moon size={16} />
+              </button>
+              <span className="min-w-12 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                {brightness}%
+              </span>
+              <button
+                onClick={increaseBrightness}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Tăng độ sáng"
+                aria-label="Tăng độ sáng"
+              >
+                <Sun size={16} />
+              </button>
+            </div>
             <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-full">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
               <span className="text-[9px] font-black text-green-500 uppercase tracking-widest">CLOUD ONLINE</span>
@@ -304,6 +429,17 @@ const handleDownload = async (imageUrl) => {
         </header>
 
         <div className="flex-1 p-12 overflow-y-auto pb-48 custom-scrollbar">
+          {appNotice && (
+            <div className="max-w-7xl mx-auto mb-6 p-5 bg-yellow-500/10 border border-yellow-500/20 rounded-2xl text-yellow-300 text-xs flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <AlertCircle size={14}/>
+                <span>{appNotice}</span>
+              </div>
+              <button onClick={() => setAppNotice('')} className="text-yellow-300/70 hover:text-yellow-200 transition-all">
+                <X size={14}/>
+              </button>
+            </div>
+          )}
           
           {/* TAB 1: HOME DASHBOARD */}
           {activeTab === 'home' && (
@@ -316,7 +452,7 @@ const handleDownload = async (imageUrl) => {
                 <input type="file" ref={fileInputRef} className="hidden" onChange={(e)=>{if(e.target.files[0]){setReferenceFile(e.target.files[0]); setReferencePreview(URL.createObjectURL(e.target.files[0]));}}} />
               </div>
               <div className="bg-[#09090c] rounded-[2.75rem] p-10 border border-white/5 shadow-2xl relative">
-                <div className="flex justify-between items-center mb-8"><span className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] flex items-center gap-2"><Sparkles size={14}/> AI RESULT</span>{result && <button onClick={()=>{const a=document.createElement('a'); a.href=result; a.download='ai-res.png'; a.click();}} className="bg-blue-600 p-2 rounded-lg hover:bg-blue-500 transition-all shadow-lg"><Download size={18}/></button>}</div>
+                <div className="flex justify-between items-center mb-8"><span className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] flex items-center gap-2"><Sparkles size={14}/> AI RESULT</span>{result && <button onClick={() => handleDownload(result)} className="bg-blue-600 p-2 rounded-lg hover:bg-blue-500 transition-all shadow-lg"><Download size={18}/></button>}</div>
                 <div className="aspect-square bg-black/40 rounded-[2.2rem] border border-white/5 flex items-center justify-center overflow-hidden">
                   {loading ? <div className="text-center"><Loader2 className="animate-spin text-blue-500" size={48} /><p className="text-[10px] font-black uppercase text-blue-500 mt-4">Processing</p></div> : result ? <img src={result} className="w-full h-full object-cover animate-in zoom-in-95 duration-500" /> : <div className="text-center opacity-5"><Sparkles size={48} /><p className="text-xs font-bold uppercase tracking-widest mt-4">Waiting for Prompt</p></div>}
                 </div>
@@ -346,19 +482,15 @@ const handleDownload = async (imageUrl) => {
       </button>
     </div>
 
-    {/* Giao diện 2 cột: Danh sách & Xem trước */}
+    {/* Giao diá»‡n 2 cá»™t: Danh sÃ¡ch & Xem trÆ°á»›c */}
     <div className="flex-1 flex gap-10 overflow-hidden">
       
-      {/* CỘT TRÁI: DANH SÁCH SESSIONS */}
+      {/* Cá»˜T TRÃI: DANH SÃCH SESSIONS */}
       <div className="w-1/3 space-y-2 overflow-y-auto pr-4 custom-scrollbar border-r border-white/5">
         {historyItems.map((item) => (
           <div 
             key={item.id} 
-            onClick={() => { 
-              // Load vào bộ nhớ để hiện bên cột Preview
-              if(item.image_url) setResult(item.image_url); 
-              setPrompt(item.prompt); 
-            }} 
+            onClick={() => loadHistoryItem(item)} 
             className={`group flex items-center gap-4 px-6 py-5 rounded-[2rem] cursor-pointer transition-all border ${
               result === item.image_url 
               ? 'bg-blue-600/10 border-blue-500/30' 
@@ -379,7 +511,7 @@ const handleDownload = async (imageUrl) => {
         ))}
       </div>
 
-      {/* CỘT PHẢI: KHUNG XEM ẢNH TO (PREVIEW PANE) */}
+      {/* Cá»˜T PHáº¢I: KHUNG XEM áº¢NH TO (PREVIEW PANE) */}
       <div className="flex-1 bg-[#09090c] rounded-[3rem] border border-white/5 p-8 flex flex-col relative group">
         <div className="absolute top-6 left-10 z-10">
           <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.4em] italic bg-[#0d0d11] px-4 py-2 rounded-full border border-blue-500/20 shadow-xl">
@@ -387,7 +519,7 @@ const handleDownload = async (imageUrl) => {
           </span>
         </div>
 
-        {/* Khung hiển thị ảnh chính */}
+        {/* Khung hiá»ƒn thá»‹ áº£nh chÃ­nh */}
         <div className="flex-1 rounded-[2rem] overflow-hidden bg-black/40 border border-white/5 relative flex items-center justify-center">
           {result ? (
             <img src={result} className="w-full h-full object-contain animate-in zoom-in-95 duration-500" alt="Full Preview" />
@@ -399,7 +531,7 @@ const handleDownload = async (imageUrl) => {
           )}
         </div>
 
-        {/* Thông tin câu lệnh đi kèm ảnh */}
+        {/* ThÃ´ng tin cÃ¢u lá»‡nh Ä‘i kÃ¨m áº£nh */}
         {result && (
           <div className="mt-8 p-6 bg-white/5 rounded-3xl border border-white/5 animate-in slide-in-from-bottom-2">
             <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -409,10 +541,10 @@ const handleDownload = async (imageUrl) => {
               "{prompt}"
             </p>
             
-            {/* Nút Edit - Chỉ khi nào muốn sửa tiếp mới bấm đây để về Home */}
+            {/* NÃºt Edit - Chá»‰ khi nÃ o muá»‘n sá»­a tiáº¿p má»›i báº¥m Ä‘Ã¢y Ä‘á»ƒ vá» Home */}
             <div className="mt-6 flex justify-end">
               <button 
-                onClick={() => setActiveTab('home')}
+                onClick={() => loadHistoryItem(selectedHistoryItem, { openEditor: true })}
                 className="flex items-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black uppercase italic text-[11px] tracking-widest transition-all shadow-lg active:scale-95"
               >
                 Open in Editor <Send size={16} />
@@ -446,7 +578,7 @@ const handleDownload = async (imageUrl) => {
         </div>
       </main>
 
-      {/* SETTINGS POPOVER (KIỂU GOOGLE CHUẨN) */}
+      {/* SETTINGS POPOVER (KIá»‚U GOOGLE CHUáº¨N) */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-[100] overflow-hidden">
           <div className="absolute inset-0 bg-transparent" onClick={() => setIsSettingsOpen(false)}></div>
@@ -454,12 +586,42 @@ const handleDownload = async (imageUrl) => {
             <div className="flex justify-end mb-2"><X size={20} className="text-gray-500 cursor-pointer hover:text-white transition-all" onClick={()=>setIsSettingsOpen(false)}/></div>
             <div className="text-center pb-6 border-b border-white/5 relative">
               <p className="text-[11px] text-gray-400 font-medium mb-4 tracking-widest truncate px-4">{currentUser?.email}</p>
-              <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto flex items-center justify-center text-3xl font-black border-4 border-[#2d2e30] mb-4 shadow-xl">{currentUser?.name?.slice(0,1)}</div>
-              <h2 className="text-xl font-medium text-white tracking-tight italic">Welcome {currentUser?.name?.split(' ').pop()},</h2>
-              <button onClick={() => alert("Profile Mode!")} className="mt-4 px-6 py-2 rounded-full border border-gray-600 text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-gray-300">Manage your Lab account</button>
+              <div className="w-20 h-20 bg-blue-600 rounded-full mx-auto flex items-center justify-center text-3xl font-black border-4 border-[#2d2e30] mb-4 shadow-xl overflow-hidden">
+                {currentUser?.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" alt={currentUser?.name || 'User avatar'} /> : currentUser?.name?.slice(0,1)}
+              </div>
+              <h2 className="text-xl font-medium text-white tracking-tight italic">Welcome {displayFirstName},</h2>
+              <button onClick={() => setAppNotice('This feature is currently being updated.')} className="mt-4 px-6 py-2 rounded-full border border-gray-600 text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-gray-300">Manage your Lab account</button>
             </div>
             <div className="mt-4 space-y-1">
-              <div onClick={() => alert("Flux.1-schnell activated!")} className="flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl cursor-pointer group transition-all"><div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-white/10 text-blue-400"><Sparkles size={18}/></div><div><p className="text-sm font-bold text-white">AI Model</p><p className="text-[10px] text-gray-500 italic uppercase">FLUX.1-schnell</p></div></div>
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-yellow-500/10 rounded-full flex items-center justify-center text-yellow-400">
+                      {brightness >= 100 ? <Sun size={18} /> : <Moon size={18} />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">Display Brightness</p>
+                      <p className="text-[10px] text-gray-500 italic uppercase">{brightness}% intensity</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={resetBrightness}
+                    className="px-4 py-2 rounded-full border border-white/10 text-[10px] font-bold uppercase tracking-widest text-gray-300 hover:bg-white/5 transition-all"
+                  >
+                    Reset
+                  </button>
+                </div>
+                <input
+                  type="range"
+                  min="70"
+                  max="130"
+                  step="5"
+                  value={brightness}
+                  onChange={(e) => setBrightness(Number(e.target.value))}
+                  className="mt-4 w-full accent-blue-500 cursor-pointer"
+                />
+              </div>
+              <div onClick={() => setAppNotice('This feature is currently being updated.')} className="flex items-center gap-4 p-4 hover:bg-white/5 rounded-2xl cursor-pointer group transition-all"><div className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center group-hover:bg-white/10 text-blue-400"><Sparkles size={18}/></div><div><p className="text-sm font-bold text-white">AI Model</p><p className="text-[10px] text-gray-500 italic uppercase">FLUX.1-schnell</p></div></div>
               <div className="mt-4 pt-4 border-t border-white/5"><div onClick={handleLogout} className="flex items-center justify-center gap-3 p-4 hover:bg-red-500/10 rounded-2xl cursor-pointer text-gray-400 hover:text-red-400 transition-all"><LogOut size={18}/><span className="text-xs font-black uppercase tracking-widest">Sign out of Lab</span></div></div>
             </div>
           </div>
@@ -480,3 +642,5 @@ function NavItem({ icon, label, active, onClick }) {
 }
 
 export default App;
+
+

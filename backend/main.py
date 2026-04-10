@@ -92,30 +92,32 @@ async def get_history(email: str):
 @app.post("/edit-image")
 async def edit_image(text: str = Form(...), email: str = Form(...), image: UploadFile = File(...)):
     try:
-        # 1. TẠO TÊN FILE DUY NHẤT CHO ẢNH GỐC
-        timestamp = int(time.time())
-        ref_filename = f"ref_{timestamp}_{image.filename}"
+        # 1. ĐỌC DỮ LIỆU ẢNH GỐC BÀ VỪA UP
         ref_content = await image.read()
+        
+        # Tạo tên file duy nhất để không bị đè nhau
+        ref_filename = f"original_{uuid.uuid4()}.png"
 
-        # 2. UPLOAD ẢNH GỐC LÊN STORAGE
+        # 2. ĐẨY ẢNH GỐC LÊN KHO (STORAGE)
+        # (Giả sử bà đã tạo bucket tên là 'history_images')
         supabase_admin.storage.from_("history_images").upload(ref_filename, ref_content)
+        
+        # Lấy link công khai của ảnh gốc
         ref_url = supabase_admin.storage.from_("history_images").get_public_url(ref_filename)
 
         # 3. GỌI AI ĐỂ GEN ẢNH (Giữ nguyên logic Hugging Face của bà)
-        # Giả sử sau khi gen xong bà có biến 'result_url'
-        # ...
-        
-        # 4. CẬP NHẬT LỆNH INSERT (NEW QUERY ĐÂY NÈ!)
+        # Giả sử kết quả là 'result_url'
+
+        # 4. GHI VÀO DATABASE (CHỖ NÀY QUYẾT ĐỊNH NULL HAY KHÔNG)
         supabase_admin.table("history_table").insert({
             "email": email,
             "prompt": text,
-            "image_url": result_url,            # Ảnh đã edit
-            "reference_image_url": ref_url      # Ảnh gốc bà vừa upload ở bước 2
+            "image_url": result_url,            # Ảnh kết quả
+            "reference_image_url": ref_url      # Link ảnh gốc (KHÔNG CÒN NULL NỮA!)
         }).execute()
 
         return {"status": "success", "image_url": result_url}
     except Exception as e:
-        print(f"Error: {e}")
         return {"status": "error", "message": str(e)}
 if __name__ == "__main__":
     # Chạy cổng 8001 cho ổn định bà nhé
