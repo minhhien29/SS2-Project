@@ -33,7 +33,7 @@ function App() {
     if (typeof window === 'undefined') return 100;
 
     const savedBrightness = Number(window.localStorage.getItem(DISPLAY_BRIGHTNESS_STORAGE_KEY));
-    return Number.isFinite(savedBrightness) && savedBrightness >= 70 && savedBrightness <= 130
+    return Number.isFinite(savedBrightness) && savedBrightness >= 70 && savedBrightness <= 300
       ? savedBrightness
       : 100;
   });
@@ -105,7 +105,7 @@ function App() {
 
   const displayFirstName = currentUser?.name?.trim()?.split(/\s+/).slice(-1)[0] || 'Developer';
   const decreaseBrightness = () => setBrightness((current) => Math.max(70, current - 10));
-  const increaseBrightness = () => setBrightness((current) => Math.min(130, current + 10));
+  const increaseBrightness = () => setBrightness((current) => Math.min(300, current + 10));
   const resetBrightness = () => setBrightness(100);
   const displayFilterStyle = { filter: `brightness(${brightness}%)` };
 
@@ -537,7 +537,7 @@ function App() {
             <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-2 flex items-center gap-2">
               <MessageSquare size={12}/> Original Prompt:
             </p>
-            <p className="text-xl font-black italic text-gray-200 uppercase tracking-tighter">
+            <p className="prompt-display-text text-[1.45rem] text-gray-100">
               "{prompt}"
             </p>
             
@@ -614,7 +614,7 @@ function App() {
                 <input
                   type="range"
                   min="70"
-                  max="130"
+                  max="300"
                   step="5"
                   value={brightness}
                   onChange={(e) => setBrightness(Number(e.target.value))}
