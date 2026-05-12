@@ -1,0 +1,12 @@
+{
+  "framework": "vite",
+  "installCommand": "npm --prefix ai-gen install",
+  "buildCommand": "npm --prefix ai-gen run build",
+  "outputDirectory": "ai-gen/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
