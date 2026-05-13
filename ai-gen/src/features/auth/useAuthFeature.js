@@ -66,6 +66,9 @@ function useAuthFeature({ fetchHistory, setAppNotice, setIsSettingsOpen }) {
     setIsResetPasswordOpen(true);
     setResetNewPassword('');
     if (userEmail) setResetEmail(userEmail);
+    if (typeof window !== 'undefined' && window.location.pathname === '/reset-password') {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
     setIsLoggedIn(false);
     setCurrentUser(null);
   };
@@ -250,26 +253,10 @@ function useAuthFeature({ fetchHistory, setAppNotice, setIsSettingsOpen }) {
 
       const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : '';
       const hashParams = new URLSearchParams(hash);
-      const code = searchParams.get('code');
       const tokenHash = searchParams.get('token_hash');
       const recoveryType = searchParams.get('type') || hashParams.get('type');
 
       try {
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) {
-            setAuthError(error.message || 'This reset link is invalid or has expired.');
-            return;
-          }
-
-          if (recoveryType === 'recovery' || currentPath === '/reset-password') {
-            openRecoveryModal(data?.session?.user?.email || data?.user?.email || '');
-          }
-
-          window.history.replaceState({}, document.title, currentPath);
-          return;
-        }
-
         if (tokenHash && recoveryType === 'recovery') {
           const { data, error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
