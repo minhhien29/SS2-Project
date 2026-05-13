@@ -13,14 +13,14 @@ function ResetPasswordModal({
   if (!isResetPasswordOpen) return null;
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 px-6 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#12131a] p-8 shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm sm:px-6">
+      <div className="w-full max-w-[32rem] rounded-[1.75rem] border border-white/10 bg-[#12131a] p-[clamp(1.25rem,3vw,2rem)] shadow-[0_25px_80px_rgba(0,0,0,0.45)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[12px] font-black uppercase tracking-[0.35em] text-blue-400">
               {isRecoveryMode ? 'Update Password' : 'Password Reset'}
             </p>
-            <h2 className="mt-3 text-3xl font-black uppercase italic text-white">
+            <h2 className="mt-3 text-[clamp(1.8rem,5vw,2.2rem)] font-black uppercase italic text-white">
               {isRecoveryMode ? 'Set New Password' : 'Reset Password'}
             </h2>
           </div>
@@ -33,16 +33,16 @@ function ResetPasswordModal({
           </button>
         </div>
 
-        <form onSubmit={handleResetPasswordSubmit} className="mt-8 space-y-6">
-          <div className="space-y-3">
-            <label className="text-[16px] font-black uppercase tracking-wide text-gray-300">Email Address</label>
-            <div className="flex items-center gap-4 rounded-[1.35rem] bg-[#1a1b23] border border-blue-400/30 px-5 py-4 shadow-[0_0_0_1px_rgba(96,165,250,0.28),0_0_18px_rgba(56,189,248,0.18)]">
+        <form onSubmit={handleResetPasswordSubmit} className="mt-8 space-y-5">
+          <div className="space-y-2.5">
+            <label className="text-[15px] font-black uppercase tracking-wide text-gray-300">Email Address</label>
+            <div className="flex min-h-[56px] items-center gap-4 rounded-[1.2rem] border border-blue-400/30 bg-[#1a1b23] px-4 py-3 shadow-[0_0_0_1px_rgba(96,165,250,0.28),0_0_18px_rgba(56,189,248,0.18)]">
               <input
                 type="email"
                 required
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
-                className="flex-1 bg-transparent text-[17px] text-white outline-none placeholder:text-gray-500"
+                className="flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-gray-500"
                 placeholder="name@email.com"
               />
               <Mail size={18} className="text-blue-300/80" />
@@ -50,28 +50,28 @@ function ResetPasswordModal({
           </div>
 
           {isRecoveryMode ? (
-            <div className="space-y-3">
-              <label className="text-[16px] font-black uppercase tracking-wide text-gray-300">New Password</label>
-              <div className="flex items-center gap-4 rounded-[1.35rem] bg-[#1a1b23] border border-blue-400/30 px-5 py-4 shadow-[0_0_0_1px_rgba(96,165,250,0.28),0_0_18px_rgba(56,189,248,0.18)]">
+            <div className="space-y-2.5">
+              <label className="text-[15px] font-black uppercase tracking-wide text-gray-300">New Password</label>
+              <div className="flex min-h-[56px] items-center gap-4 rounded-[1.2rem] border border-blue-400/30 bg-[#1a1b23] px-4 py-3 shadow-[0_0_0_1px_rgba(96,165,250,0.28),0_0_18px_rgba(56,189,248,0.18)]">
                 <input
                   type="password"
                   required
                   minLength={6}
                   value={resetNewPassword}
                   onChange={(e) => setResetNewPassword(e.target.value)}
-                  className="flex-1 bg-transparent text-[17px] text-white outline-none placeholder:text-gray-500"
+                  className="flex-1 bg-transparent text-[15px] text-white outline-none placeholder:text-gray-500"
                   placeholder="Enter a new password"
                 />
                 <Lock size={18} className="text-blue-300/80" />
               </div>
             </div>
           ) : (
-            <p className="rounded-[1.35rem] border border-white/10 bg-white/5 px-5 py-4 text-sm leading-6 text-gray-400">
+            <p className="rounded-[1.2rem] border border-white/10 bg-white/5 px-4 py-4 text-sm leading-6 text-gray-400">
               We will send a secure password reset link to your email address. Open the link in your inbox to choose a new password.
             </p>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <button
               type="button"
               onClick={onClose}
